@@ -238,7 +238,7 @@ class LifeFrame(wx.Frame):
         info.Description = wordwrap(
             "Simple Python implementation of Conway's Game of Life.",
             350, wx.ClientDC(self))
-        info.WebSite = ("https://github.com/liquidvapour/pythonGameOfLife", "pythonGameOfLife Github page")
+        info.WebSite = ("https://github.com/liquidvapour/pythonGameOfLife", "pythonGameOfLife GitHub page")
         info.Developers = [ "Ra-el Peters" ]
 
         licenceFile = open("SIMPLE LICENCE.txt", "r")
