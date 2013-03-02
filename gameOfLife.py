@@ -25,13 +25,7 @@ dieHard = [(1,2),(2,2),(2,3),(7,1),(6,3),(7,3),(8,3)]
 
 info = {}
 
-def neighboursGenerator():
-    for i in range(-1, 2):
-        for j in range(-1, 2):
-            if not (i == 0 and j == 0):
-                yield (i,j)
-
-neighbours = list(neighboursGenerator())
+neighbours = [(i, j) for i in range(-1, 2) for j in range(-1, 2) if not (i == 0 and j == 0)]
 
 @timeMe
 def findDeadCellsNeighbours(currentGen):
