@@ -1,0 +1,5 @@
+Copyright 2013 Ra-el Peters
+
+Licenced under GPL. See LICENCE.txt which should have been distributed with
+this script.
+
