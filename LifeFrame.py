@@ -6,6 +6,19 @@ import gameOfLife
 import diagnostics
 from diagnostics import timeMe
 
+import multiprocessing
+from multiprocessing import Process, Pipe
+
+def UpdateThreaded(conn, firstGen):
+    stop = False
+    nextGen = firstGen
+    while not stop:        
+        nextGen = gameOfLife.calcGen(nextGen)
+        conn.send(nextGen)
+        if conn.poll():
+            stop = conn.recv() == "stop"
+            
+
 class LifeFrame(wx.Frame):
     def __init__(self, parent, ID, title, pos=wx.DefaultPosition,
                  size=wx.DefaultSize,
@@ -14,10 +27,6 @@ class LifeFrame(wx.Frame):
         wx.Frame.__init__(self, parent, ID, title, pos, size, style)
         self._gen = gen
         self.SetBackgroundStyle(wx.BG_STYLE_CUSTOM)
-        self._background = wx.Brush(wx.WHITE, wx.SOLID)        
-
-        self._timer = wx.Timer(self)
-        self._timer.Start(1000/16)      
 
         self.Bind(wx.EVT_MOTION, self.OnMotion)
         self.Bind(wx.EVT_PAINT, self.OnPaint)
@@ -27,17 +36,34 @@ class LifeFrame(wx.Frame):
         self._offset = (-20,-20)
         self._mouseMoving = False
         self._lastGenTime = 0.0
+        self._background = wx.Brush(wx.WHITE, wx.SOLID)        
         self._background = wx.Brush(wx.Color(63,63,63))
         self._cellColor = wx.Color(183,135,135)
         self._cellBrush = wx.Brush(self._cellColor)
         self._cellPen = wx.Pen(self._cellColor)
         self._textColor = wx.Color(223,223,191)
+
+        self._timer = wx.Timer(self)
+        self._timer.Start(1000/16)      
+
         self._generations = 0
         self._minX = 0
         self._minY = 0
         self._maxX = 0
         self._maxY = 0
+        self._info = {}
 
+        self._set_up_multiprocessing()
+        
+    def _set_up_multiprocessing(self):
+        print "CPUs: {0}.".format(multiprocessing.cpu_count())
+    
+        self._parent_conn, child_conn = Pipe()
+        self._process = Process(target=UpdateThreaded, args=(child_conn, self._gen))
+        self._process.start()
+
+    
+        
     def OnMotion(self, event):        
         if event.LeftIsDown():
             if self._mouseMoving:
@@ -54,9 +80,25 @@ class LifeFrame(wx.Frame):
             self._mouseMoving = False
 
     def OnClose(self, event):
+        print "stopping timer"
         self._timer.Stop()
+        print "sending stop to background process."
+        self._parent_conn.send("stop")        
+        self._empty_connection(self._parent_conn)
+        print "joining background process."        
+        self._process.join()        
+        print "process is alive: {0}".format(self._process.is_alive())        
+        print "destroying self."
         self.Destroy()
 
+    def _empty_connection(self, conn):
+        print "clearing connection."
+        itemsCleared = 0
+        while conn.poll():
+            buffer = conn.recv()
+            itemsCleared += 1
+        print "connection cleared of {0} items.".format(itemsCleared)
+        
     @timeMe
     def OnPaint(self, event):
         try:
@@ -71,7 +113,8 @@ class LifeFrame(wx.Frame):
             self.RenderSizeBars(self._gen, dc)
             
             dc.SetTextForeground(self._textColor)
-            lastCell = self.RenderInfo(dc, gameOfLife.info)
+            lastCell = self.RenderInfo(dc, self._info)
+            lastCell = self.RenderInfo(dc, gameOfLife.info, lastCell)
             self.RenderInfo(dc, diagnostics.perfInfo, lastCell)
             dc.EndDrawing()
             if (len(self._gen) == 0): self._timer.Stop()
@@ -87,11 +130,13 @@ class LifeFrame(wx.Frame):
 
     @timeMe
     def Update(self):
-        self._gen = gameOfLife.calcGen(self._gen)
-        self._generations += 1
-        gameOfLife.info["generations"] = self._generations
-        
-
+        if self._parent_conn.poll():
+            #self._gen = gameOfLife.calcGen(self._gen)
+            self._gen = self._parent_conn.recv()
+            self._generations += 1
+            self._info["generations"] = self._generations
+            self._info["queued generations"] = len(self._parent_conn)
+            
     @timeMe
     def RenderGen(self, gen, dc):        
         width, height = self.GetClientSize()

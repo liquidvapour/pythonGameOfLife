@@ -53,7 +53,7 @@ def getCellsThatLiveOn(currentGen):
 
 @timeMe
 def calcGen(currentGen):
-    """ rules:
+    """rules:
  Any live cell with fewer than two live neighbours dies,
    as if caused by under-population.
  Any live cell with two or three live neighbours lives on to the next generation.
