@@ -1,8 +1,28 @@
+#-----------------------------------------------------------------------------
+# Copyright 2013 Ra-el Peters
+#-----------------------------------------------------------------------------
+#    This file is part of pythonGameOfLife.
+#
+#    pythonGameOfLife is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    pythonGameOfLife is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with pythonGameOfLife.  If not, see <http://www.gnu.org/licenses/>.
+
 import sys
 import traceback
 
 import wx
+from wx.lib.wordwrap import wordwrap
 import gameOfLife
+import wxHelper
 import diagnostics
 from diagnostics import timeMe
 
@@ -32,6 +52,7 @@ class LifeFrame(wx.Frame):
         self.Bind(wx.EVT_PAINT, self.OnPaint)
         self.Bind(wx.EVT_TIMER, self.OnTimer)
         self.Bind(wx.EVT_CLOSE, self.OnClose)
+        self.Bind(wx.EVT_KEY_UP, self.OnKeyUp)
 
         self._offset = (-20,-20)
         self._mouseMoving = False
@@ -63,6 +84,11 @@ class LifeFrame(wx.Frame):
         self._process.start()
 
     
+    def OnKeyUp(self, event):        
+        key = wxHelper.GetKeyName(event.GetKeyCode())
+        print "key up: {0}".format(key)
+        if key == "H":
+            self._show_about()
         
     def OnMotion(self, event):        
         if event.LeftIsDown():
@@ -130,12 +156,10 @@ class LifeFrame(wx.Frame):
 
     @timeMe
     def Update(self):
-        if self._parent_conn.poll():
-            #self._gen = gameOfLife.calcGen(self._gen)
+        if self._parent_conn.poll():            
             self._gen = self._parent_conn.recv()
             self._generations += 1
             self._info["generations"] = self._generations
-            self._info["queued generations"] = len(self._parent_conn)
             
     @timeMe
     def RenderGen(self, gen, dc):        
@@ -205,8 +229,31 @@ class LifeFrame(wx.Frame):
     @timeMe
     def DrawCel(self, cell, dc):
         dc.DrawRectangle(cell[0] * 10, cell[1] * 10, 10, 10)
+        
+    def _show_about(self):
+        info = wx.AboutDialogInfo()
+        info.Name = "pythonGameOfLife"
+        info.Version = "0.0.1"
+        info.Copyright = "(C) 2013 Ra-el Peters"
+        info.Description = wordwrap(
+            "Simple Python implementation of Conway's Game of Life.",
+            350, wx.ClientDC(self))
+        info.WebSite = ("https://github.com/liquidvapour/pythonGameOfLife", "pythonGameOfLife Github page")
+        info.Developers = [ "Ra-el Peters" ]
+
+        licenceFile = open("SIMPLE LICENCE.txt", "r")
+        
+        info.License = wordwrap(licenceFile.read(), 500, wx.ClientDC(self))
+
+        wx.AboutBox(info)
 
 def main(startGen = gameOfLife.acorn):
+
+    print "pythonGameOfLife  Copyright (C) 2013  Ra-el Peters"
+    print "This program comes with ABSOLUTELY NO WARRANTY; for details type 'h'."
+    print "This is free software, and you are welcome to redistribute it"
+    print "under certain conditions; type 'h' for details."
+
     app = wx.PySimpleApp()
     
     d = LifeFrame(None, -1, "Test",gen=startGen)
